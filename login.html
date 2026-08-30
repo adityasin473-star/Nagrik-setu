@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in — Nagrik Setu</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="brand" href="index.html">
+      <span class="seal">NS</span>
+      <span><span class="name">Nagrik Setu</span><br><span class="tag">Citizen Grievance Token Office</span></span>
+    </a>
+    <nav><a href="index.html">Home</a></nav>
+  </div>
+</header>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <span class="eyebrow">Welcome back</span>
+    <h1>Log in to your counter</h1>
+    <p class="sub">Access your grievance tickets or the officer's desk.</p>
+
+    <div class="role-tabs">
+      <button type="button" id="tabCitizen" class="active">Citizen</button>
+      <button type="button" id="tabAdmin">Grievance Officer</button>
+    </div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="email">Email address</label>
+        <input type="email" id="email" required placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required placeholder="••••••••">
+      </div>
+      <div class="form-msg err" id="msg"></div>
+      <div class="field">
+        <button class="btn btn-navy btn-block" type="submit" id="submitBtn">Log in as Citizen</button>
+      </div>
+    </form>
+
+    <div class="demo-box" id="demoBox">
+      <b>Demo citizen login</b><br>demo@citizen.in / demo123
+    </div>
+
+    <p class="switch-link">New here? <a href="register.html">Create a citizen account</a></p>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  let role = "citizen";
+  const tabCitizen = document.getElementById("tabCitizen");
+  const tabAdmin = document.getElementById("tabAdmin");
+  const submitBtn = document.getElementById("submitBtn");
+  const demoBox = document.getElementById("demoBox");
+
+  function setRole(r) {
+    role = r;
+    tabCitizen.classList.toggle("active", r === "citizen");
+    tabAdmin.classList.toggle("active", r === "admin");
+    submitBtn.textContent = r === "citizen" ? "Log in as Citizen" : "Log in as Officer";
+    demoBox.innerHTML = r === "citizen"
+      ? "<b>Demo citizen login</b><br>demo@citizen.in / demo123"
+      : "<b>Demo officer login</b><br>admin@setu.gov.in / admin123";
+  }
+  tabCitizen.addEventListener("click", () => setRole("citizen"));
+  tabAdmin.addEventListener("click", () => setRole("admin"));
+
+  document.getElementById("loginForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const msg = document.getElementById("msg");
+    const result = login({ email, password, role });
+    if (!result.ok) {
+      msg.textContent = result.message;
+      msg.className = "form-msg err show";
+      return;
+    }
+    window.location.href = role === "admin" ? "admin.html" : "dashboard.html";
+  });
+</script>
+</body>
+</html>

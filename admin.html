@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Officer Desk — Nagrik Setu</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-topbar">
+  <a class="brand" href="index.html" style="color:inherit">
+    <span class="name" style="font-size:18px">Nagrik Setu</span>
+  </a>
+  <div class="who">Logged in as <b id="whoName">—</b> · Grievance Officer &nbsp;•&nbsp; <a href="#" id="logoutLink" style="color:#EFC877;">Log out</a></div>
+</div>
+
+<div class="app-shell">
+  <div class="app-head">
+    <div>
+      <span class="eyebrow">Officer desk</span>
+      <h1>All Grievance Tickets</h1>
+      <p>Review incoming tickets across every counter and move them through resolution.</p>
+    </div>
+  </div>
+
+  <div class="stat-row" id="statRow"></div>
+
+  <div class="two-col">
+    <div class="panel">
+      <h2>Tickets by category</h2>
+      <p class="sub">Share of total filed complaints.</p>
+      <div id="categoryBars"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Ticket queue</h2>
+      <p class="sub">Filter and update status as tickets are actioned.</p>
+      <div class="filter-bar">
+        <select id="filterCategory">
+          <option value="all">All categories</option>
+          <option value="refund">Consumer Grievance &amp; Refunds</option>
+          <option value="road">Public Infrastructure &amp; Road Repair</option>
+          <option value="utility">Electricity &amp; Utility Issues</option>
+          <option value="water">Municipal Water Supply</option>
+          <option value="upi">Digital Payment &amp; Banking</option>
+          <option value="cyber">Cyber Crime &amp; Digital Fraud</option>
+          <option value="scheme">Scheme &amp; Benefit Discovery</option>
+          <option value="health">Public Health &amp; Hospital Guidance</option>
+          <option value="education">Student &amp; Education Guidance</option>
+          <option value="other">Other Public Service Grievance</option>
+        </select>
+        <select id="filterStatus">
+          <option value="all">All statuses</option>
+          <option>Pending</option>
+          <option>In Progress</option>
+          <option>Resolved</option>
+        </select>
+      </div>
+      <div id="ticketList"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+  const officer = requireRole("admin");
+  if (officer) {
+    document.getElementById("whoName").textContent = officer.name;
+    renderAll();
+  }
+
+  document.getElementById("logoutLink").addEventListener("click", function (e) {
+    e.preventDefault(); logout();
+  });
+  document.getElementById("filterCategory").addEventListener("change", renderList);
+  document.getElementById("filterStatus").addEventListener("change", renderList);
+
+  function renderAll() { renderStats(); renderCategoryBars(); renderList(); }
+
+  function renderStats() {
+    const all = getComplaints();
+    const pending = all.filter(c => c.status === "Pending").length;
+    const progress = all.filter(c => c.status === "In Progress").length;
+    const resolved = all.filter(c => c.status === "Resolved").length;
+    const stats = [
+      { n: all.length, l: "Total tickets" },
+      { n: pending, l: "Pending" },
+      { n: progress, l: "In progress" },
+      { n: resolved, l: "Resolved" },
+    ];
+    document.getElementById("statRow").innerHTML = stats.map(s =>
+      `<div class="stat-card"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`
+    ).join("");
+  }
+
+  function renderCategoryBars() {
+    const all = getComplaints();
+    const total = all.length || 1;
+    const html = CATEGORIES.map(cat => {
+      const count = all.filter(c => c.category === cat.id).length;
+      const pct = Math.round((count / total) * 100);
+      return `
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--charcoal-soft);margin-bottom:4px;">
+            <span>${cat.label}</span><span>${count}</span>
+          </div>
+          <div class="stat-bar"><span style="width:${pct}%"></span></div>
+        </div>`;
+    }).join("");
+    document.getElementById("categoryBars").innerHTML = html;
+  }
+
+  function renderList() {
+    const catFilter = document.getElementById("filterCategory").value;
+    const statusFilter = document.getElementById("filterStatus").value;
+    let list = getComplaints().sort((a, b) => b.date - a.date);
+    if (catFilter !== "all") list = list.filter(c => c.category === catFilter);
+    if (statusFilter !== "all") list = list.filter(c => c.status === statusFilter);
+
+    const el = document.getElementById("ticketList");
+    if (!list.length) {
+      el.innerHTML = `<div class="empty-note"><div class="big">—</div>No tickets match this filter.</div>`;
+      return;
+    }
+    el.innerHTML = list.map(c => `
+      <div class="record">
+        <div class="rec-main">
+          <div class="rec-top">
+            <span class="id">${c.id}</span>
+            <span class="cat">${categoryLabel(c.category)}</span>
+          </div>
+          <h4>${escapeHtml(c.title)}</h4>
+          <p>${escapeHtml(c.description)}</p>
+          <div class="meta">Filed by ${escapeHtml(c.userName)} · ${escapeHtml(c.location)} · ${fmtDate(c.date)} · Priority: ${c.priority}</div>
+        </div>
+        <div class="rec-side">
+          <span class="stamp ${statusClass(c.status)}">${c.status}</span>
+          <select class="status-select" data-id="${c.id}">
+            <option ${c.status === "Pending" ? "selected" : ""}>Pending</option>
+            <option ${c.status === "In Progress" ? "selected" : ""}>In Progress</option>
+            <option ${c.status === "Resolved" ? "selected" : ""}>Resolved</option>
+          </select>
+        </div>
+      </div>
+    `).join("");
+
+    document.querySelectorAll(".status-select").forEach(sel => {
+      sel.addEventListener("change", function () {
+        updateStatus(this.dataset.id, this.value);
+        renderAll();
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>
